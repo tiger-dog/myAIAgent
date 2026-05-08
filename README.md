@@ -15,7 +15,7 @@
 | 侧栏会话列表 | 调用运行时 `GET /v1/threads/summary`，支持归档筛选与搜索 |
 | 多面板聊天 | 每个线程独立 `WebviewPanel`，可并行打开（上限可配置） |
 | 模式切换 | 面板内 Plan / Agent / YOLO → `PATCH /v1/threads/{id}` |
-| 自动启动运行时 | 默认在 `/health` 不可用时执行 `deepseek --workspace <工作区> serve --http`（与 `baseUrl`、token 配置一致） |
+| 自动启动运行时 | 默认在 `/health` 不可用时于工作区目录下执行 `deepseek serve --http`（与 `baseUrl`、token 配置一致） |
 | 重启运行时 | 命令 **DeepSeek: 重启本机 HTTP 运行时** |
 | TUI Session 导入 | **DeepSeek: 从 TUI Session 导入为 Thread** |
 | 输入体验 | 输入框 **Enter 发送**，**Shift+Enter 换行**（中文输入法选字时避免误发） |
@@ -75,7 +75,7 @@ uv run python scripts/run.py --help
 
 ## 日常使用（扩展）
 
-1. 安装 **DeepSeek CLI**，保证 `deepseek` 在 PATH（或之后在设置里配置 `deepseek.runtime.executable`）。
+1. 安装 **DeepSeek CLI**（扩展在默认配置下会用系统 `where` / `which` 并结合常见目录解析 `deepseek` 路径，**不必**完全依赖编辑器继承的 PATH；特殊安装位置可在设置里配置 `deepseek.runtime.executable`）。
 2. 按上一节 **`uv run python scripts/run.py build`** 编译扩展；或用 **VSIX**：`uv run python scripts/run.py sidebar-package` 后从 VSIX 安装。
 3. 在 VS Code / Cursor 中 **打开你的项目文件夹**。
 4. 活动栏打开 **DeepSeek → 会话**；默认会自动尝试启动 HTTP 运行时（可在设置中关闭 `deepseek.runtime.autoStartRuntime`）。

@@ -38,7 +38,7 @@
         "deepseek.runtime.workspace": {
           "type": "string",
           "default": "",
-          "description": "覆盖工作区路径（留空则使用当前 VS Code 工作区根目录，与 deepseek serve --workspace 保持一致）"
+          "description": "作为启动 deepseek 时的进程工作目录（留空则用当前 VS Code 工作区根；调度器用 cwd 解析 TUI 工作区，不传 --workspace）"
         },
         "deepseek.runtime.autoStartRuntime": {
           "type": "boolean",
@@ -48,7 +48,7 @@
         "deepseek.runtime.executable": {
           "type": "string",
           "default": "deepseek",
-          "description": "用于启动 HTTP 运行时的 deepseek 可执行文件（名称或绝对路径）"
+          "description": "调度器 deepseek（支持 serve --http），非 deepseek-tui。可填绝对路径，例如 …\\deepseek-windows-x64.exe 重命名后的 deepseek.exe"
         },
         "deepseek.sidebar.includeArchived": {
           "type": "boolean",
