@@ -1,0 +1,22 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+
+# VS Code 扩展
+vscode-deepseek-sidebar/node_modules/
+vscode-deepseek-sidebar/out/
+vscode-deepseek-sidebar/*.vsix
+
+# DeepSeek-TUI：常为独立上游仓库、体积大，默认不纳入本仓库；需要时在旁侧自行 clone
+DeepSeek-TUI/
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+*.log
+
+# 根目录误生成的空 npm 锁文件（若再次出现可忽略）
+/package-lock.json

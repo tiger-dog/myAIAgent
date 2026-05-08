@@ -1,0 +1,10 @@
+[project]
+name = "myaiagent"
+version = "0.1.0"
+description = "VS Code / Cursor 扩展：连接 DeepSeek TUI HTTP 运行时，侧栏会话与多面板聊天"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.uv]
+package = false

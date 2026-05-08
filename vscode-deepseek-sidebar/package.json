@@ -1,0 +1,147 @@
+{
+  "name": "deepseek-sidebar",
+  "displayName": "DeepSeek Runtime",
+  "description": "DeepSeek TUI HTTP runtime: sidebar threads, multi chat panels, Plan/Agent/YOLO",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished", "onView:deepseekThreads"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "DeepSeek Runtime",
+      "properties": {
+        "deepseek.runtime.baseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:7878",
+          "description": "Base URL of deepseek serve --http"
+        },
+        "deepseek.runtime.authToken": {
+          "type": "string",
+          "default": "",
+          "description": "Bearer token when runtime uses --auth-token"
+        },
+        "deepseek.runtime.autoRestorePanels": {
+          "type": "boolean",
+          "default": true,
+          "description": "Reopen chat panels for saved threads after window reload"
+        },
+        "deepseek.runtime.maxConcurrentPanels": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 32
+        },
+        "deepseek.runtime.workspace": {
+          "type": "string",
+          "default": "",
+          "description": "覆盖工作区路径（留空则使用当前 VS Code 工作区根目录，与 deepseek serve --workspace 保持一致）"
+        },
+        "deepseek.runtime.autoStartRuntime": {
+          "type": "boolean",
+          "default": true,
+          "description": "激活扩展时若 /health 不可用，则自动在本机执行 deepseek serve --http（需 deepseek 在 PATH 或可执行路径）"
+        },
+        "deepseek.runtime.executable": {
+          "type": "string",
+          "default": "deepseek",
+          "description": "用于启动 HTTP 运行时的 deepseek 可执行文件（名称或绝对路径）"
+        },
+        "deepseek.sidebar.includeArchived": {
+          "type": "boolean",
+          "default": false,
+          "description": "List archived threads in sidebar"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "deepseek",
+          "title": "DeepSeek",
+          "icon": "media/deepseek.svg"
+        }
+      ]
+    },
+    "views": {
+      "deepseek": [
+        {
+          "id": "deepseekThreads",
+          "name": "会话"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "deepseek.newChat",
+        "title": "DeepSeek: 新建会话"
+      },
+      {
+        "command": "deepseek.refreshThreads",
+        "title": "DeepSeek: 刷新会话列表"
+      },
+      {
+        "command": "deepseek.openThread",
+        "title": "DeepSeek: 打开会话"
+      },
+      {
+        "command": "deepseek.importTuiSession",
+        "title": "DeepSeek: 从 TUI Session 导入为 Thread"
+      },
+      {
+        "command": "deepseek.toggleArchived",
+        "title": "DeepSeek: 切换显示已归档会话"
+      },
+      {
+        "command": "deepseek.searchThreads",
+        "title": "DeepSeek: 搜索会话"
+      },
+      {
+        "command": "deepseek.restartRuntime",
+        "title": "DeepSeek: 重启本机 HTTP 运行时"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "deepseek.newChat",
+          "when": "view == deepseekThreads",
+          "group": "navigation@1"
+        },
+        {
+          "command": "deepseek.refreshThreads",
+          "when": "view == deepseekThreads",
+          "group": "navigation@2"
+        },
+        {
+          "command": "deepseek.toggleArchived",
+          "when": "view == deepseekThreads",
+          "group": "navigation@3"
+        },
+        {
+          "command": "deepseek.importTuiSession",
+          "when": "view == deepseekThreads",
+          "group": "navigation@4"
+        },
+        {
+          "command": "deepseek.searchThreads",
+          "when": "view == deepseekThreads",
+          "group": "navigation@5"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}
