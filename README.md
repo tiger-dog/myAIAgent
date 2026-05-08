@@ -84,28 +84,6 @@ uv run python scripts/run.py --help
 
 ---
 
-## 推送到 GitHub
-
-本仓库初始未绑定远程。在 GitHub 上新建空仓库后，在仓库根目录执行（将 URL 换成你的地址）：
-
-```bash
-git init
-git add .
-git commit -m "Initial commit: DeepSeek sidebar extension and uv workspace"
-git branch -M main
-git remote add origin https://github.com/<你的用户名>/<仓库名>.git
-git push -u origin main
-```
-
-若使用 SSH：
-
-```bash
-git remote add origin git@github.com:<你的用户名>/<仓库名>.git
-git push -u origin main
-```
-
----
-
 ## 目录结构（摘要）
 
 ```
