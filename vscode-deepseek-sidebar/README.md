@@ -1,6 +1,6 @@
 # DeepSeek Runtime（VS Code 扩展）
 
-若你从本仓库的**上一级根目录**（`myAIAgent`）管理工程，可用 **uv** 统一编译：在根目录执行 `uv sync` 后 `uv run python scripts/run.py build`，等价于在本目录执行 `npm install` 与 `npm run compile`。详见上级 [README.md](../README.md)。
+若你从本仓库的**上一级根目录**（`myAIAgent`）管理工程，可用 **uv** 统一编译：在根目录执行 `uv sync` 后 `uv run python scripts/run.py build`，等价于在本目录执行 `npm install` 与 `npm run compile`。更完整的单仓说明在**上级目录** `myAIAgent` 根下的 `README.md`（该文件不在 VSIX 包内，仅供本地克隆后阅读）。
 
 将本机 [DeepSeek TUI](https://github.com/Hmbown/DeepSeek-TUI) 的 **HTTP 运行时**（`deepseek serve --http`）接入 VS Code：活动栏 **DeepSeek → 会话** 列出历史线程，在编辑器区打开 **多个聊天面板**，支持 **Plan / Agent / YOLO** 模式切换。
 
