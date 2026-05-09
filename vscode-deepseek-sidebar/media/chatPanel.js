@@ -440,16 +440,41 @@ function handleItemFinished(env, ev) {
 
   if (kind === 'agent_message') {
     const last = logEl.lastElementChild;
-    if (last && last.dataset.role === 'agent' && (last.textContent || '').length > 0) return;
-    if (last && last.dataset.role === 'agent' && !last.textContent && text) {
-      last.textContent = text;
+    const lastIsAgent = last && last.dataset.role === 'agent';
+    const cur = lastIsAgent ? last.textContent || '' : '';
+    const lastLen = cur.length;
+    const t = text != null ? String(text) : '';
+    const finLen = t.length;
+    /** 完成事件若携带比流式更长的正文，必须用其覆盖（原逻辑在此直接 return 会导致截断） */
+    let appliedLongerMerge = false;
+    if (lastIsAgent && finLen > lastLen) {
+      last.textContent = t;
+      appliedLongerMerge = true;
+    }
+    const wouldSkipMergeOldBug = !!(lastIsAgent && lastLen > 0 && !appliedLongerMerge);
+    // #region agent log
+    vscode.postMessage({
+      type: '_debugLog',
+      payload: {
+        runId: 'post-fix',
+        hypothesisId: 'H1',
+        location: 'chatPanel.js:handleItemFinished',
+        message: 'agent_message completed (UI branch)',
+        data: { lastLen, finLen, wouldSkipMergeOldBug, appliedLongerMerge, itemId: itemId || null }
+      }
+    });
+    // #endregion
+    if (appliedLongerMerge) return;
+    if (lastIsAgent && lastLen > 0) return;
+    if (lastIsAgent && !lastLen && t) {
+      last.textContent = t;
       return;
     }
-    if (!text) return;
+    if (!t) return;
     const div = document.createElement('div');
     div.className = 'bubble agent';
     div.dataset.role = 'agent';
-    div.textContent = text;
+    div.textContent = t;
     logEl.appendChild(div);
     return;
   }

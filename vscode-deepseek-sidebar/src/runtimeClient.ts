@@ -89,8 +89,8 @@ function agentDbg(
   hypothesisId: string
 ): void {
   const payload = {
-    sessionId: "02b741",
-    runId: "post-fix",
+    sessionId: "ce7ce1",
+    runId: "pre-fix",
     hypothesisId,
     location,
     message,
@@ -99,7 +99,7 @@ function agentDbg(
   };
   fetch("http://127.0.0.1:7903/ingest/b1fa4e33-b1f3-441a-83ad-cef0440ca9da", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "02b741" },
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "ce7ce1" },
     body: JSON.stringify(payload),
   }).catch(() => {});
 }
@@ -547,20 +547,24 @@ export class RuntimeClient {
       } catch {
         tid = null;
       }
-      /* 409 重试不再重复 interrupt：每次 interrupt 都会 SSE「中断已请求」，历史会话会刷屏。
-         首轮已在上方 interrupt+wait；此处仅 resume + 等待持久化终态 + 退避。 */
+      /* 运行时证据：仅 resume+wait 时僵尸线程持续 409（debug-02b741.log L12–37）。
+         恢复每轮重试再 interrupt，以便 monitor 有机会收尾；与刷屏权衡见串行 postTurn。 */
+      if (tidStatus === "in_progress" || tidStatus === "queued") {
+        await this.interruptLatestTurnBestEffort(id);
+      }
       // #region agent log
       agentDbg(
         "runtimeClient.ts:postTurn",
-        "409 retry without extra interrupt",
+        "409 retry after conditional interrupt",
         {
           threadId: id,
           retryIndex: attempt + 1,
           tid,
           tidStatus,
+          didInterrupt: tidStatus === "in_progress" || tidStatus === "queued",
           msSinceEnter: Date.now() - postTurnStartedAt,
         },
-        "H8"
+        "H9"
       );
       // #endregion
       if (tid) {

@@ -1,10 +1,13 @@
 import * as crypto from "crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import { getChatPanelHtml } from "./chatHtml";
 import { loadOpenThreads, saveOpenThreads, type OpenThreadMeta } from "./persist";
 import { ManagedDeepseekRuntime } from "./runtimeProcess";
 import { RuntimeClient, type RuntimeEnvelope } from "./runtimeClient";
 import { clampSeqToThreadMax, mergeEventSeq, mergeLatestSeq } from "./sessionSeq";
+import { resolveFinishedText } from "./sseEnvelopeUtils";
 import { resolveThreadEventsSinceSeq } from "./sseSinceSeq";
 import { ThreadTreeProvider } from "./threadTreeProvider";
 
@@ -24,6 +27,9 @@ interface ActiveSession {
 }
 
 const sessions = new Map<string, ActiveSession>();
+
+/** 同一线程串行执行 postTurn，避免首条尚在 409 重试时第二条又 interrupt/POST 叠在一起（日志 L14–18）。 */
+const postTurnTail = new Map<string, Promise<void>>();
 
 /** CSP nonce：仅字母数字，避免 base64 的 +/ 在部分环境下干扰 CSP 解析 */
 function getCspNonce(): string {
@@ -68,6 +74,33 @@ async function persistOpenSessions(ctx: vscode.ExtensionContext): Promise<void> 
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  const debugLogPath = path.join(context.extensionPath, "..", "debug-ce7ce1.log");
+  const agentDeltaAccum = new Map<string, number>();
+  function dbgLog(entry: Record<string, unknown>): void {
+    try {
+      fs.appendFileSync(
+        debugLogPath,
+        JSON.stringify({ sessionId: "ce7ce1", timestamp: Date.now(), ...entry }) + "\n"
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+  function coalesceDeltaPayload(p: Record<string, unknown>): string {
+    const keys = ["delta", "text", "chunk", "output", "stdout", "stderr", "content"] as const;
+    for (const k of keys) {
+      const v = p[k];
+      if (v == null || v === "") continue;
+      if (typeof v === "string") return v;
+      try {
+        return JSON.stringify(v);
+      } catch {
+        return String(v);
+      }
+    }
+    return "";
+  }
+
   client = new RuntimeClient();
   tree = new ThreadTreeProvider(client);
   managedRuntime = new ManagedDeepseekRuntime(client);
@@ -142,6 +175,59 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       s.eventBuffer.push(env);
       return;
     }
+    // #region agent log
+    const p = env.payload || {};
+    const item = (p.item as Record<string, unknown> | undefined) || {};
+    const kind =
+      (typeof item.kind === "string" ? item.kind : "") ||
+      (typeof p.kind === "string" ? p.kind : "");
+    const rawId = env.item_id ?? p.item_id ?? item.id ?? "";
+    const itemId = rawId != null && rawId !== "" ? String(rawId) : "";
+    if (kind === "agent_message") {
+      const accKey = `${threadId}:${itemId || "_"}`;
+      if (env.event === "item.delta") {
+        const d = coalesceDeltaPayload(p as Record<string, unknown>);
+        if (d.length) {
+          const prev = agentDeltaAccum.get(accKey) || 0;
+          agentDeltaAccum.set(accKey, prev + d.length);
+          if (prev === 0) {
+            dbgLog({
+              runId: "post-fix",
+              hypothesisId: "H4",
+              location: "extension.ts:pushEvent",
+              message: "agent_message first delta",
+              data: { threadId, itemId: itemId || null, deltaLen: d.length, seq: env.seq },
+            });
+          }
+        }
+      } else if (env.event === "item.completed" || env.event === "item.failed") {
+        const finished = resolveFinishedText(p as never, item as never);
+        const acc = agentDeltaAccum.get(accKey) || 0;
+        dbgLog({
+          runId: "post-fix",
+          hypothesisId: "H1",
+          location: "extension.ts:pushEvent",
+          message: "agent_message terminal (wire to webview)",
+          data: {
+            threadId,
+            itemId: itemId || null,
+            event: env.event,
+            finishedLen: finished.length,
+            streamedDeltaAcc: acc,
+            finishedGtStream: finished.length > acc,
+          },
+        });
+        dbgLog({
+          runId: "post-fix",
+          hypothesisId: "H3",
+          location: "extension.ts:pushEvent",
+          message: "runtimeEvent envelope size",
+          data: { approxJsonBytes: JSON.stringify(env).length, event: env.event, kind },
+        });
+        agentDeltaAccum.delete(accKey);
+      }
+    }
+    // #endregion
     s.panel.webview.postMessage({ type: "runtimeEvent", env });
   }
 
@@ -185,6 +271,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (!s) return;
     s.abort.abort();
     sessions.delete(threadId);
+    postTurnTail.delete(threadId);
     void persistOpenSessions(context);
   }
 
@@ -237,36 +324,48 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         approvalId?: string;
         decision?: string;
         remember?: boolean;
+        payload?: Record<string, unknown>;
       }) => {
+        // #region agent log
+        if (msg.type === "_debugLog" && msg.payload && typeof msg.payload === "object") {
+          dbgLog({ runId: "post-fix", ...(msg.payload as Record<string, unknown>) });
+          return;
+        }
+        // #endregion
         if (msg.type === "ready") {
           s.ready = true;
           await sendInitAndFlush(threadId, s);
           return;
         }
         if (msg.type === "sendPrompt" && msg.prompt) {
+          const promptText = msg.prompt;
           // #region agent log
-          fetch("http://127.0.0.1:7903/ingest/b1fa4e33-b1f3-441a-83ad-cef0440ca9da", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "02b741" },
-            body: JSON.stringify({
-              sessionId: "02b741",
-              runId: "post-fix",
-              hypothesisId: "H1",
-              location: "extension.ts:sendPrompt",
-              message: "sendPrompt handler entered",
-              data: { threadId, promptLen: msg.prompt.length, t: Date.now() },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
+          dbgLog({
+            runId: "post-fix",
+            hypothesisId: "H2",
+            location: "extension.ts:sendPrompt",
+            message: "sendPrompt handler entered",
+            data: { threadId, promptLen: promptText.length },
+          });
           // #endregion
-          try {
-            await client.postTurn(threadId, msg.prompt);
+          const prev = postTurnTail.get(threadId) ?? Promise.resolve();
+          const work = prev.then(async () => {
+            await client.postTurn(threadId, promptText);
             try {
               const d = await client.getThread(threadId);
               s.lastSeq = clampSeqToThreadMax(s.lastSeq, d.latest_seq);
             } catch {
               /* ignore */
             }
+          });
+          postTurnTail.set(
+            threadId,
+            work.catch(() => {
+              /* 错误由下方 await 处理；链尾需吞掉 rejection 以免阻断后续发送 */
+            })
+          );
+          try {
+            await work;
           } catch (e) {
             panel.webview.postMessage({
               type: "error",
